@@ -105,9 +105,15 @@ def generate_clothing_suggestions(res, palm, prompt):
     )
     print(completion.result)
     json_string = completion.result
-    print(json_string)
-    json_string = json_string.replace("```json", "").strip()
-    json_string = json_string.replace("```", "").strip()
+    if json_string is not None:
+        
+        print(json_string)
+        json_string = json_string.replace("```json", "").strip()
+        json_string = json_string.replace("```", "").strip()
+    else:
+        json_string = {"nothing":"nothing is nothing"}
+
+    
 
     json_data = json.loads(json_string)
     json_data["response"] = res
@@ -170,10 +176,18 @@ def chatbot(request):
           
         elif current_conversation:
             print("======================= Data in request:", current_conversation)
-            mess = current_conversation
+            prompt = """
+            I have """ + current_conversation + """. What are suitable clothes(property ,type ,styles, colors and 5 exmaple of mix, reason, personality) for me?
+            Return in json format without space, "json".
+            """
+            mess="I have " + current_conversation + ". What are short and useful advices about clothes in order number."
             # Create a new conversation
+            
+            
             responsedata = palm.chat(context="Speak like an expert on fashion", messages=[mess])
-            return Response(responsedata)
+           
+            res = responsedata.last.replace("\n", " ").strip()
+            json_data = generate_clothing_suggestions(res,palm, prompt)
 
         
         return Response(json_data)
