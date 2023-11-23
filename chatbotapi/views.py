@@ -3,6 +3,7 @@ from rest_framework.response import Response
 import google.generativeai as palm
 from collections import defaultdict
 import math
+import json
 
 
 def hex_to_rgb(hex_color):
@@ -88,7 +89,32 @@ color_names[cool_medium_color] = "Cool Medium"
 cool_dark_color = (70, 34, 31)
 color_names[cool_dark_color] = "Cool Dark"
 
+def generate_clothing_suggestions(res, palm, prompt):
+    models = [m for m in palm.list_models() if 'generateText' in m.supported_generation_methods]
+    model = models[0].name
+    print(model)
 
+    
+
+    completion = palm.generate_text(
+        model=model,
+        prompt=prompt,
+        temperature=0,
+        # The maximum length of the response
+        max_output_tokens=800,
+    )
+    print(completion.result)
+    json_string = completion.result
+    print(json_string)
+    json_string = json_string.replace("```json", "").strip()
+    json_string = json_string.replace("```", "").strip()
+
+    json_data = json.loads(json_string)
+    json_data["response"] = res
+    # Pretty-print the JSON data
+    print(json_data)
+    print("print successfully")
+    return json_data
 
 @api_view(['GET', 'POST'])
 def chatbot(request):
@@ -101,36 +127,53 @@ def chatbot(request):
         input_hex_color = request.data.get('color', '')
         
         current_conversation = request.data.get('content', '')
-        choice = request.data.get('choice', '')
-        conversation="There is no one-size-fits-all answer to this question, as the best clothes for you will depend on your individual style and preferences. However, there are some general tips that can help you choose clothes that flatter your skin tone and personality.\n\nIf you have a warm skin tone, you should look for clothes in warm colors like red, orange, yellow, and gold. These colors will make your skin look radiant and healthy. You should also avoid cool colors like blue, green, and purple, as these colors can make your skin look dull.\n\nIf you have a cool skin tone, you should look for clothes in cool colors like blue, green, and purple. These colors will make your skin look vibrant and healthy. You should avoid warm colors like red, orange, yellow, and gold, as these colors can make your skin look flushed.\n\nOnce you have chosen colors that flatter your skin tone, you can start to think about style. If you are a classic type, you will want to choose clothes that are timeless and elegant. Look for pieces that are well-made and will last for years. If you are a dramatic type, you will want to choose clothes that are bold and eye-catching. Look for pieces with interesting details and patterns. If you are a natural type, you will want to choose clothes that are comfortable and relaxed. Look for pieces made from natural fibers like cotton and linen. If you are a thinker type, you will want to choose clothes that are functional and practical. Look for pieces that are easy to care for and won't wrinkle easily. If you are a feeler type, you will want to choose clothes that make you feel good. Look for pieces that are soft and comfortable to wear.\n\nNo matter what your personality type, there are a few general rules of thumb that you can follow when choosing clothes. First, make sure that the clothes fit you well. Clothes that are too tight or too loose will make you look uncomfortable and sloppy. Second, choose clothes that are appropriate for the occasion. You wouldn't want to wear a cocktail dress to a job interview, for example. Third, don't be afraid to experiment with different styles and colors. The best way to find out what looks good on you is to try different things.\n\nWith a little bit of effort, you can find clothes that flatter your skin tone, personality, and style. So don't be afraid to experiment and have fun with fashion!"
-
+        mbti = request.data.get('mbti', '')
+        
         # Initialize the Palm chatbot (replace 'your_api_key' with your actual API key)
         palm.configure(api_key='AIzaSyCeSGV9fTHFnBW35s6LUqpQs8b7O7j9Ldc')
-        mess='hi'
-        responsedata=palm.chat(context="Speak like an expert on fashion", messages=[mess])
+        
         if input_hex_color:
             input_rgb_color = hex_to_rgb(input_hex_color)
             color_name = get_closest_color_name(input_rgb_color)
             print("======================= Data in request:", input_hex_color,input_rgb_color,color_name)
-            mess = f'I have {color_name} skin tone. What are suitable clothes( styles, and colors) for me? return follow json object'
-            # Create a new conversation
+            # mess = f'Return json format .I have {color_name} skin tone. What are suitable clothes( styles, and colors) for me?'
+            # # Create a new conversation
+            # responsedata = palm.chat(context="Speak like an expert on fashion and IT", messages=[mess])
+            prompt = """
+            I have """ + color_name + """ skin tone. What are suitable clothes(property ,type ,styles, colors and 5 exmaple of mix, reason, personality) for me?
+            Return in json format without space, "json".
+            """
+            mess="I have " + color_name + " skin tone. What are short and useful advices about clothes in order number."
+            
             responsedata = palm.chat(context="Speak like an expert on fashion", messages=[mess])
-        if choice!='no':
-            print("======================= Data in request:", choice)
-            mess = f'{conversation} and {choice} is my MBTI,base on MBTI and skin tone, What are suitable clothes( styles, and colors) '
-            # Create a new conversation
+            res = responsedata.last.replace("\n", " ").strip()
+            
+            json_data = generate_clothing_suggestions(res,palm, prompt)
+            
+
+          
+            
+            
+            
+        if mbti:
+            print("======================= Data in request:", mbti)
+            prompt = """
+            I have """ + mbti + """. What are suitable clothes(property ,type ,styles, colors and 5 exmaple of mix, reason, personality) for me?
+            Return in json format without space, "json".
+            """
+            mess="I have " + mbti + ". What are short and useful advices about clothes in order number."
+            
             responsedata = palm.chat(context="Speak like an expert on fashion", messages=[mess])
+           
+            res = responsedata.last.replace("\n", " ").strip()
+            json_data = generate_clothing_suggestions(res,palm, prompt)
+          
         elif current_conversation:
             print("======================= Data in request:", current_conversation)
             mess = current_conversation
             # Create a new conversation
-            responsedata = responsedata.reply(mess)
+            responsedata = palm.chat(context="Speak like an expert on fashion", messages=[mess])
+            return Response(responsedata)
+
         
-
-        # Get the bot's response
-        bot_response = responsedata.last
-
-        # You can add additional logic or processing here if needed
-
-        # Return the bot's response
-        return Response(bot_response)
+        return Response(json_data)
