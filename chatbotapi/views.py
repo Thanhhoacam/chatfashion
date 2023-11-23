@@ -133,11 +133,30 @@ def chatbot(request):
         input_hex_color = request.data.get('color', '')
         
         current_conversation = request.data.get('content', '')
+        
         mbti = request.data.get('mbti', '')
+
         
         # Initialize the Palm chatbot (replace 'your_api_key' with your actual API key)
         palm.configure(api_key='AIzaSyCeSGV9fTHFnBW35s6LUqpQs8b7O7j9Ldc')
         
+        if mbti and input_hex_color:
+            input_rgb_color = hex_to_rgb(input_hex_color)
+            color_name = get_closest_color_name(input_rgb_color)
+            print("======================= Data in request:", mbti, color_name)
+            prompt = """
+            I have """ + mbti + """ MBTI and """+color_name+""" skin tone. What are suitable clothes(property (skin_color, mbti_number) ,type(5) ,styles(5), colors(5) and 5 exmaple of mix, reason, personality) for me?
+            Return in json format without space, "json".
+            """
+            mess="""I have """ + mbti + """ MBTI and """+color_name+ """skin tone. What are short and useful advices about clothes in order number."""
+            
+            responsedata = palm.chat(context="Speak like an expert on fashion", messages=[mess])
+           
+            res = responsedata.last.replace("\n", " ").strip()
+            json_data = generate_clothing_suggestions(res,palm, prompt)
+            return Response(json_data)
+
+
         if input_hex_color:
             input_rgb_color = hex_to_rgb(input_hex_color)
             color_name = get_closest_color_name(input_rgb_color)
@@ -146,7 +165,7 @@ def chatbot(request):
             # # Create a new conversation
             # responsedata = palm.chat(context="Speak like an expert on fashion and IT", messages=[mess])
             prompt = """
-            I have """ + color_name + """ skin tone. What are suitable clothes(property ,type ,styles, colors and 5 exmaple of mix, reason, personality) for me?
+            I have """ + color_name + """ skin tone. What are suitable clothes(property ,type(5) ,styles(5), colors(5) and 5 exmaple of mix, reason, personality) for me?
             Return in json format without space, "json".
             """
             mess="I have " + color_name + " skin tone. What are short and useful advices about clothes in order number."
@@ -156,6 +175,7 @@ def chatbot(request):
             
             json_data = generate_clothing_suggestions(res,palm, prompt)
             
+            
 
           
             
@@ -164,7 +184,7 @@ def chatbot(request):
         if mbti:
             print("======================= Data in request:", mbti)
             prompt = """
-            I have """ + mbti + """. What are suitable clothes(property ,type ,styles, colors and 5 exmaple of mix, reason, personality) for me?
+            I have """ + mbti + """. What are suitable clothes(property (personality),type(5) ,styles(5), colors(5) and 5 exmaple of mix, reason, personality) for me?
             Return in json format without space, "json".
             """
             mess="I have " + mbti + ". What are short and useful advices about clothes in order number."
@@ -173,7 +193,10 @@ def chatbot(request):
            
             res = responsedata.last.replace("\n", " ").strip()
             json_data = generate_clothing_suggestions(res,palm, prompt)
-          
+        
+        
+
+
         elif current_conversation:
             print("======================= Data in request:", current_conversation)
             prompt = """
