@@ -6,6 +6,46 @@ import math
 import json
 
 
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+import time
+
+def search_and_extract_info(item):
+    driver = webdriver.Chrome()  # Đảm bảo bạn đã cài đặt ChromeDriver
+    driver.get("https://www.amazon.com/")
+
+    search_query = item['top']
+    search_box = driver.find_element(By.ID, "twotabsearchtextbox")
+    search_box.send_keys(search_query)
+    search_box.send_keys(Keys.ENTER)
+
+    time.sleep(5)  # Đợi trang tải và kết quả tìm kiếm hiện ra
+    # print("Trang sau khi tìm kiếm: ", driver.page_source)
+    product_info = []
+    products = driver.find_elements(By.CSS_SELECTOR, 'div.a-section.a-spacing-base')
+    # print(products)
+    for product in products[2:3]:
+        # product_html = product.get_attribute('outerHTML')
+        # print("code prodduct============",product_html)
+        # Tìm và trích xuất thông tin từ mỗi sản phẩm
+        img = product.find_element(By.CSS_SELECTOR, 'img').get_attribute('src')
+        product_name = product.find_element(By.CSS_SELECTOR, 'span.a-size-base-plus').text
+        price = product.find_element(By.CSS_SELECTOR, 'span.a-price').text
+
+        product_info.append({
+            'image_url': img,
+            'name': product_name,
+            'price': price
+        })
+
+    driver.quit()
+    return product_info
+
+
+       
+        
+        
 def hex_to_rgb(hex_color):
             # Loại bỏ ký tự "#" nếu có
             hex_color = hex_color.lstrip("#")
@@ -212,5 +252,13 @@ def chatbot(request):
             res = responsedata.last.replace("\n", " ").strip()
             json_data = generate_clothing_suggestions(res,palm, prompt)
 
+        
+        mix_data = json_data["mix"]
+
+        for item in mix_data:
+        # Gọi hàm search_and_extract_info và lưu kết quả vào item
+            dataai = search_and_extract_info(item)
+            print("====================",dataai)
+            item['product'] = dataai
         
         return Response(json_data)
