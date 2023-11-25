@@ -143,7 +143,7 @@ def chatbot(request):
         if mbti and input_hex_color:
             input_rgb_color = hex_to_rgb(input_hex_color)
             color_name = get_closest_color_name(input_rgb_color)
-            print("======================= Data in request both:", mbti, color_name)
+            print("======================= Data in request:", mbti, color_name)
             prompt = """
             I have """ + mbti + """ MBTI and """+color_name+""" skin tone. What are suitable clothes(property (skin_color, mbti_number) ,type(5) ,styles(5), colors(5) and 5 exmaple of mix, reason, personality) for me?
             Return in json format without space, "json".
@@ -165,7 +165,7 @@ def chatbot(request):
             # # Create a new conversation
             # responsedata = palm.chat(context="Speak like an expert on fashion and IT", messages=[mess])
             prompt = """
-            I have """+color_name+""" skin tone. What are suitable clothes (type ,style, color,reason) and sort these clothes with each type of mbti personalities (type ,style, color, reason) ?
+            I have """ + color_name + """ skin tone. What are suitable clothes(property ,type(5) ,styles(5), colors(5) and 5 exmaple of mix, reason, personality) for me?
             Return in json format without space, "json".
             """
             mess="I have " + color_name + " skin tone. What are short and useful advices about clothes in order number."
