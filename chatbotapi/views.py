@@ -6,6 +6,74 @@ import math
 import json
 
 
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options  # Import thêm dòng này
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+import time
+
+def create_headless_chromedriver():
+    # Tạo đối tượng Options cho Chrome
+    chrome_options = Options()
+    # Thiết lập chế độ headless
+    chrome_options.add_argument("--headless")
+    # Bạn cũng có thể thêm các tùy chọn khác nếu cần
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+
+    # Khởi tạo ChromeDriver với các tùy chọn đã thiết lập
+    driver = webdriver.Chrome(options=chrome_options)
+    return driver
+def search_and_extract_info(item,gender):
+    driver = webdriver.Chrome()  #khong chay ngam 
+    # driver = create_headless_chromedriver() # chay ngam 
+    driver.get("https://www.amazon.com/")
+
+    try:
+        search_query = item['top']
+    except KeyError:
+        # Nếu không tìm thấy key 'top', sử dụng 'type' và 'color'
+        search_query = f"{item['type']} {item['color']}"
+
+    # Thêm thông tin về giới tính nếu có
+    if gender:
+        search_query += f" {gender}"
+    try:
+        search_box = driver.find_element(By.ID, "twotabsearchtextbox")
+    except Exception:
+        # Nếu không tìm thấy input với ID "twotabsearchtextbox", thử ID "nav-bb-search"
+        search_box = driver.find_element(By.ID, "nav-bb-search")
+    search_box.send_keys(search_query)
+    search_box.send_keys(Keys.ENTER)
+
+    time.sleep(5)  # Đợi trang tải và kết quả tìm kiếm hiện ra
+    # print("Trang sau khi tìm kiếm: ", driver.page_source)
+    product_info = []
+    products = driver.find_elements(By.CSS_SELECTOR, 'div.a-section.a-spacing-base')
+    # print(products)
+    for product in products[2:3]:
+        # product_html = product.get_attribute('outerHTML')
+        # print("code prodduct============",product_html)
+        # Tìm và trích xuất thông tin từ mỗi sản phẩm
+        img = product.find_element(By.CSS_SELECTOR, 'img').get_attribute('src')
+        product_name = product.find_element(By.CSS_SELECTOR, 'span.a-size-base-plus').text
+        price = product.find_element(By.CSS_SELECTOR, 'span.a-price').text
+        product_link = product.find_element(By.CSS_SELECTOR, 'a.a-link-normal.s-no-outline').get_attribute('href')
+
+        product_info.append({
+            'image_url': img,
+            'name': product_name,
+            'price': price,
+            'link': product_link  # Thêm link vào thông tin sản phẩm
+        })
+
+    driver.quit()
+    return product_info
+
+
+       
+        
+        
 def hex_to_rgb(hex_color):
             # Loại bỏ ký tự "#" nếu có
             hex_color = hex_color.lstrip("#")
@@ -89,7 +157,7 @@ color_names[cool_medium_color] = "Cool Medium"
 cool_dark_color = (70, 34, 31)
 color_names[cool_dark_color] = "Cool Dark"
 
-def generate_clothing_suggestions(res, palm, prompt):
+def generate_clothing_suggestions(res, palm, prompt,gender ):
     models = [m for m in palm.list_models() if 'generateText' in m.supported_generation_methods]
     model = models[0].name
     print(model)
@@ -117,8 +185,17 @@ def generate_clothing_suggestions(res, palm, prompt):
 
     json_data = json.loads(json_string)
     json_data["response"] = res
-    # Pretty-print the JSON data
-    print(json_data)
+  
+    mix_data = json_data["mix"]
+
+    for item in mix_data[0:2]:
+        # Gọi hàm search_and_extract_info và lưu kết quả vào item
+        try:
+            dataai = search_and_extract_info(item, gender)
+            item['product'] = dataai
+        except Exception as e:
+    # Xử lý ngoại lệ ở đây
+            print(f"An error occurred: {e}")
     print("print successfully")
     return json_data
 
@@ -128,7 +205,7 @@ def chatbot(request):
         return Response({"message": "Hello, please give me color skin hex code"})
 
     if request.method == 'POST':
-        
+        gender = request.data.get('gender', '')
         
         input_hex_color = request.data.get('color', '')
         
@@ -153,7 +230,7 @@ def chatbot(request):
             responsedata = palm.chat(context="Speak like an expert on fashion", messages=[mess])
            
             res = responsedata.last.replace("\n", " ").strip()
-            json_data = generate_clothing_suggestions(res,palm, prompt)
+            json_data = generate_clothing_suggestions(res,palm, prompt,gender)
             return Response(json_data)
 
 
@@ -173,7 +250,7 @@ def chatbot(request):
             responsedata = palm.chat(context="Speak like an expert on fashion", messages=[mess])
             res = responsedata.last.replace("\n", " ").strip()
             
-            json_data = generate_clothing_suggestions(res,palm, prompt)
+            json_data = generate_clothing_suggestions(res,palm, prompt,gender )
             
             
 
@@ -192,7 +269,7 @@ def chatbot(request):
             responsedata = palm.chat(context="Speak like an expert on fashion", messages=[mess])
            
             res = responsedata.last.replace("\n", " ").strip()
-            json_data = generate_clothing_suggestions(res,palm, prompt)
+            json_data = generate_clothing_suggestions(res,palm, prompt,gender )
         
         
 
@@ -210,7 +287,18 @@ def chatbot(request):
             responsedata = palm.chat(context="Speak like an expert on fashion", messages=[mess])
            
             res = responsedata.last.replace("\n", " ").strip()
-            json_data = generate_clothing_suggestions(res,palm, prompt)
+            json_data = generate_clothing_suggestions(res,palm, prompt,gender )
 
+        
+        mix_data = json_data["mix"]
+        
+        for item in mix_data[0:2]:
+        # Gọi hàm search_and_extract_info và lưu kết quả vào item
+            try:
+                dataai = search_and_extract_info(item, gender)
+                item['product'] = dataai
+            except Exception as e:
+    # Xử lý ngoại lệ ở đây
+                print(f"An error occurred: {e}")
         
         return Response(json_data)
