@@ -7,16 +7,34 @@ import json
 
 
 from selenium import webdriver
+from selenium.webdriver.chrome.options import Options  # Import thêm dòng này
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 import time
 
+def create_headless_chromedriver():
+    # Tạo đối tượng Options cho Chrome
+    chrome_options = Options()
+    # Thiết lập chế độ headless
+    chrome_options.add_argument("--headless")
+    # Bạn cũng có thể thêm các tùy chọn khác nếu cần
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+
+    # Khởi tạo ChromeDriver với các tùy chọn đã thiết lập
+    driver = webdriver.Chrome(options=chrome_options)
+    return driver
 def search_and_extract_info(item):
-    driver = webdriver.Chrome()  # Đảm bảo bạn đã cài đặt ChromeDriver
+    # driver = webdriver.Chrome()  # Đảm bảo bạn đã cài đặt ChromeDriver
+    driver = create_headless_chromedriver()
     driver.get("https://www.amazon.com/")
 
     search_query = item['top']
-    search_box = driver.find_element(By.ID, "twotabsearchtextbox")
+    try:
+        search_box = driver.find_element(By.ID, "twotabsearchtextbox")
+    except Exception:
+        # Nếu không tìm thấy input với ID "twotabsearchtextbox", thử ID "nav-bb-search"
+        search_box = driver.find_element(By.ID, "nav-bb-search")
     search_box.send_keys(search_query)
     search_box.send_keys(Keys.ENTER)
 
@@ -32,11 +50,13 @@ def search_and_extract_info(item):
         img = product.find_element(By.CSS_SELECTOR, 'img').get_attribute('src')
         product_name = product.find_element(By.CSS_SELECTOR, 'span.a-size-base-plus').text
         price = product.find_element(By.CSS_SELECTOR, 'span.a-price').text
+        product_link = product.find_element(By.CSS_SELECTOR, 'a.a-link-normal.s-no-outline').get_attribute('href')
 
         product_info.append({
             'image_url': img,
             'name': product_name,
-            'price': price
+            'price': price,
+            'link': product_link  # Thêm link vào thông tin sản phẩm
         })
 
     driver.quit()
@@ -255,10 +275,10 @@ def chatbot(request):
         
         mix_data = json_data["mix"]
 
-        for item in mix_data:
+        for item in mix_data[0:2]:
         # Gọi hàm search_and_extract_info và lưu kết quả vào item
             dataai = search_and_extract_info(item)
-            print("====================",dataai)
+           
             item['product'] = dataai
         
         return Response(json_data)
