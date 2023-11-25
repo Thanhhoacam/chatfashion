@@ -4,30 +4,53 @@ import google.generativeai as palm
 from collections import defaultdict
 import math
 import json
-
+from fake_headers import Headers
+import logging
+logging.basicConfig(level=logging.DEBUG, filename='myapp.log', filemode='w')
+logger = logging.getLogger()
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options  # Import thêm dòng này
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+
 import time
 
+
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
 def create_headless_chromedriver():
+    
     # Tạo đối tượng Options cho Chrome
     chrome_options = Options()
     # Thiết lập chế độ headless
-    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--headless=new")
     # Bạn cũng có thể thêm các tùy chọn khác nếu cần
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
+    # chrome_options.add_argument("--no-sandbox")
+    # chrome_options.add_argument("--disable-dev-shm-usage")
 
     # Khởi tạo ChromeDriver với các tùy chọn đã thiết lập
     driver = webdriver.Chrome(options=chrome_options)
     return driver
 def search_and_extract_info(item,gender):
-    driver = webdriver.Chrome()  #khong chay ngam 
-    # driver = create_headless_chromedriver() # chay ngam 
-    driver.get("https://www.amazon.com/")
+
+    # if __name__ == "__main__":
+    #     header = Headers(
+    #     browser="chrome",  # Generate only Chrome UA
+    #     os="win",  # Generate ony Windows platform
+    #     headers=True  # generate misc headers
+    # )
+
+    # for i in range(10):
+    #     print(header.generate())
+    # driver = webdriver.Chrome()  #khong chay ngam 
+    
+    driver = create_headless_chromedriver() # chay ngam 
+   
+    driver.get("https://www.amazon.com/s?k=cloth&crid=18YVCOW7H5ZSM&sprefix=c%2Caps%2C915&ref=nb_sb_noss_2")
+    
+   
 
     try:
         search_query = item['top']
@@ -36,17 +59,19 @@ def search_and_extract_info(item,gender):
         search_query = f"{item['type']} {item['color']}"
 
     # Thêm thông tin về giới tính nếu có
-    if gender:
-        search_query += f" {gender}"
-    try:
-        search_box = driver.find_element(By.ID, "twotabsearchtextbox")
-    except Exception:
-        # Nếu không tìm thấy input với ID "twotabsearchtextbox", thử ID "nav-bb-search"
-        search_box = driver.find_element(By.ID, "nav-bb-search")
+    # if gender:
+    #     search_query += f" {gender}"
+    print("========================45")
+    search_box = WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.ID, 'twotabsearchtextbox'))
+    )
+    print(search_box)
+        
     search_box.send_keys(search_query)
     search_box.send_keys(Keys.ENTER)
 
-    time.sleep(5)  # Đợi trang tải và kết quả tìm kiếm hiện ra
+    # time.sleep(5)  # Đợi trang tải và kết quả tìm kiếm hiện ra
+    
     # print("Trang sau khi tìm kiếm: ", driver.page_source)
     product_info = []
     products = driver.find_elements(By.CSS_SELECTOR, 'div.a-section.a-spacing-base')
@@ -188,7 +213,7 @@ def generate_clothing_suggestions(res, palm, prompt,gender ):
   
     mix_data = json_data["mix"]
 
-    for item in mix_data[0:2]:
+    for item in mix_data:
         # Gọi hàm search_and_extract_info và lưu kết quả vào item
         try:
             dataai = search_and_extract_info(item, gender)
