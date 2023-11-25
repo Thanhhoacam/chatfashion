@@ -28,8 +28,10 @@ def search_and_extract_info(item):
     # driver = webdriver.Chrome()  # Đảm bảo bạn đã cài đặt ChromeDriver
     driver = create_headless_chromedriver()
     driver.get("https://www.amazon.com/")
-
-    search_query = item['top']
+    try:
+        search_query = item['top']
+    except Exception:
+        search_query = f"{item['type']} {item['color']}"
     try:
         search_box = driver.find_element(By.ID, "twotabsearchtextbox")
     except Exception:
