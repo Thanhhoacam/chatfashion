@@ -24,12 +24,20 @@ def create_headless_chromedriver():
     # Khởi tạo ChromeDriver với các tùy chọn đã thiết lập
     driver = webdriver.Chrome(options=chrome_options)
     return driver
-def search_and_extract_info(item):
-    # driver = webdriver.Chrome()  # Đảm bảo bạn đã cài đặt ChromeDriver
-    driver = create_headless_chromedriver()
+def search_and_extract_info(item,gender):
+    # driver = webdriver.Chrome()  #khong chay ngam 
+    driver = create_headless_chromedriver() ## chay ngam 
     driver.get("https://www.amazon.com/")
 
-    search_query = item['top']
+    try:
+        search_query = item['top']
+    except KeyError:
+        # Nếu không tìm thấy key 'top', sử dụng 'type' và 'color'
+        search_query = f"{item['type']} {item['color']}"
+
+    # Thêm thông tin về giới tính nếu có
+    if gender:
+        search_query += f" {gender}"
     try:
         search_box = driver.find_element(By.ID, "twotabsearchtextbox")
     except Exception:
@@ -149,7 +157,7 @@ color_names[cool_medium_color] = "Cool Medium"
 cool_dark_color = (70, 34, 31)
 color_names[cool_dark_color] = "Cool Dark"
 
-def generate_clothing_suggestions(res, palm, prompt):
+def generate_clothing_suggestions(res, palm, prompt,gender ):
     models = [m for m in palm.list_models() if 'generateText' in m.supported_generation_methods]
     model = models[0].name
     print(model)
@@ -177,8 +185,14 @@ def generate_clothing_suggestions(res, palm, prompt):
 
     json_data = json.loads(json_string)
     json_data["response"] = res
-    # Pretty-print the JSON data
-    print(json_data)
+  
+    mix_data = json_data["mix"]
+
+    for item in mix_data[0:5]:
+        # Gọi hàm search_and_extract_info và lưu kết quả vào item
+        dataai = search_and_extract_info(item,gender)
+           
+        item['product'] = dataai
     print("print successfully")
     return json_data
 
@@ -188,7 +202,7 @@ def chatbot(request):
         return Response({"message": "Hello, please give me color skin hex code"})
 
     if request.method == 'POST':
-        
+        gender = request.data.get('gender', '')
         
         input_hex_color = request.data.get('color', '')
         
@@ -213,7 +227,7 @@ def chatbot(request):
             responsedata = palm.chat(context="Speak like an expert on fashion", messages=[mess])
            
             res = responsedata.last.replace("\n", " ").strip()
-            json_data = generate_clothing_suggestions(res,palm, prompt)
+            json_data = generate_clothing_suggestions(res,palm, prompt,gender)
             return Response(json_data)
 
 
@@ -233,7 +247,7 @@ def chatbot(request):
             responsedata = palm.chat(context="Speak like an expert on fashion", messages=[mess])
             res = responsedata.last.replace("\n", " ").strip()
             
-            json_data = generate_clothing_suggestions(res,palm, prompt)
+            json_data = generate_clothing_suggestions(res,palm, prompt,gender )
             
             
 
@@ -252,7 +266,7 @@ def chatbot(request):
             responsedata = palm.chat(context="Speak like an expert on fashion", messages=[mess])
            
             res = responsedata.last.replace("\n", " ").strip()
-            json_data = generate_clothing_suggestions(res,palm, prompt)
+            json_data = generate_clothing_suggestions(res,palm, prompt,gender )
         
         
 
@@ -270,14 +284,14 @@ def chatbot(request):
             responsedata = palm.chat(context="Speak like an expert on fashion", messages=[mess])
            
             res = responsedata.last.replace("\n", " ").strip()
-            json_data = generate_clothing_suggestions(res,palm, prompt)
+            json_data = generate_clothing_suggestions(res,palm, prompt,gender )
 
         
         mix_data = json_data["mix"]
-
+        
         for item in mix_data[0:2]:
         # Gọi hàm search_and_extract_info và lưu kết quả vào item
-            dataai = search_and_extract_info(item)
+            dataai = search_and_extract_info(item,gender)
            
             item['product'] = dataai
         
