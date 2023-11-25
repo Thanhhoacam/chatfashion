@@ -25,8 +25,8 @@ def create_headless_chromedriver():
     driver = webdriver.Chrome(options=chrome_options)
     return driver
 def search_and_extract_info(item,gender):
-    # driver = webdriver.Chrome()  #khong chay ngam 
-    driver = create_headless_chromedriver() ## chay ngam 
+    driver = webdriver.Chrome()  #khong chay ngam 
+    # driver = create_headless_chromedriver() # chay ngam 
     driver.get("https://www.amazon.com/")
 
     try:
@@ -188,11 +188,14 @@ def generate_clothing_suggestions(res, palm, prompt,gender ):
   
     mix_data = json_data["mix"]
 
-    for item in mix_data[0:5]:
+    for item in mix_data[0:2]:
         # Gọi hàm search_and_extract_info và lưu kết quả vào item
-        dataai = search_and_extract_info(item,gender)
-           
-        item['product'] = dataai
+        try:
+            dataai = search_and_extract_info(item, gender)
+            item['product'] = dataai
+        except Exception as e:
+    # Xử lý ngoại lệ ở đây
+            print(f"An error occurred: {e}")
     print("print successfully")
     return json_data
 
@@ -291,8 +294,11 @@ def chatbot(request):
         
         for item in mix_data[0:2]:
         # Gọi hàm search_and_extract_info và lưu kết quả vào item
-            dataai = search_and_extract_info(item,gender)
-           
-            item['product'] = dataai
+            try:
+                dataai = search_and_extract_info(item, gender)
+                item['product'] = dataai
+            except Exception as e:
+    # Xử lý ngoại lệ ở đây
+                print(f"An error occurred: {e}")
         
         return Response(json_data)
